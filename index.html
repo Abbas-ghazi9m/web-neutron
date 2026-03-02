@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Synapse - Interactive Neural Web</title>
+    <style>
+        :root {
+            --bg-color: #05050f;
+            --primary-color: #00f3ff;
+            --secondary-color: #ff00ea;
+            --panel-bg: rgba(15, 15, 30, 0.6);
+            --text-main: #e0e0ff;
+            --text-muted: #8888aa;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            z-index: 10;
+            color: var(--text-main);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        #control-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        #control-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .val-display {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px var(--primary-color);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        .stats {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #fps-counter {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .instruction {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 10;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.3; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            #control-panel {
+                width: calc(100% - 40px);
+                bottom: 20px;
+                top: auto;
+                padding: 15px;
+            }
+            .instruction {
+                top: 20px;
+                bottom: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="synapse-canvas"></canvas>
+    </div>
+
+    <div id="control-panel">
+        <div class="header">
+            <h1>🧠 Project Synapse</h1>
+            <p class="subtitle">Interactive Kinematic Node Visualization. Demonstrates real-time distance calculations, spatial physics, and dynamic HTML5 Canvas rendering.</p>
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <span>Node Density</span>
+                <span id="val-nodes" class="val-display">150</span>
+            </div>
+            <input type="range" id="slider-nodes" min="50" max="400" value="150" step="10">
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <span>Connection Radius</span>
+                <span id="val-radius" class="val-display">120</span>
+            </div>
+            <input type="range" id="slider-radius" min="50" max="250" value="120" step="5">
+        </div>
+
+        <div class="control-group">
+            <div class="control-header">
+                <span>Repulsion Field 🧲</span>
+                <span id="val-repel" class="val-display">150</span>
+            </div>
+            <input type="range" id="slider-repel" min="0" max="300" value="150" step="10">
+        </div>
+        
+        <div class="control-group">
+            <div class="control-header">
+                <span>Kinetic Energy ⚡</span>
+                <span id="val-speed" class="val-display">1.0x</span>
+            </div>
+            <input type="range" id="slider-speed" min="0.1" max="3.0" value="1.0" step="0.1">
+        </div>
+
+        <div class="stats">
+            <span>Render Engine: Vanilla JS</span>
+            <span id="fps-counter">60 FPS</span>
+        </div>
+    </div>
+
+    <div class="instruction">Interact with cursor / touch to disrupt network</div>
+
+    <script>
+        const canvas = document.getElementById('synapse-canvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize rendering
+        
+        // Configuration State
+        const config = {
+            nodeCount: 150,
+            connectionRadius: 120,
+            repelRadius: 150,
+            speedMultiplier: 1.0,
+            colors: ['#00f3ff', '#ff00ea', '#7000ff', '#ffffff']
+        };
+
+        // UI Binding
+        const bindSlider = (id, configKey, valId, suffix = '') => {
+            const slider = document.getElementById(id);
+            const display = document.getElementById(valId);
+            slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                config[configKey] = val;
+                display.innerText = val + suffix;
+                if(configKey === 'nodeCount') adjustNodeCount();
+            });
+        };
+
+        bindSlider('slider-nodes', 'nodeCount', 'val-nodes');
+        bindSlider('slider-radius', 'connectionRadius', 'val-radius');
+        bindSlider('slider-repel', 'repelRadius', 'val-repel');
+        bindSlider('slider-speed', 'speedMultiplier', 'val-speed', 'x');
+
+        // Interaction State
+        const mouse = { x: -1000, y: -1000, active: false };
+        
+        const updateMouse = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = (e.clientX || e.touches[0].clientX) - rect.left;
+            mouse.y = (e.clientY || e.touches[0].clientY) - rect.top;
+            mouse.active = true;
+        };
+
+        const resetMouse = () => { mouse.active = false; mouse.x = -1000; mouse.y = -1000; };
+
+        window.addEventListener('mousemove', updateMouse);
+        window.addEventListener('touchmove', updateMouse, {passive: true});
+        window.addEventListener('mouseout', resetMouse);
+        window.addEventListener('touchend', resetMouse);
+
+        // Resize Handling
+        let width, height;
+        const resizeCanvas = () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            // Re-distribute nodes if screen shrinks severely to avoid clustering outside bounds
+            nodes.forEach(n => {
+                if(n.x > width) n.x = Math.random() * width;
+                if(n.y > height) n.y = Math.random() * height;
+            });
+        };
+        window.addEventListener('resize', resizeCanvas);
+
+        // Node Class
+        class Node {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.baseRadius = Math.random() * 2 + 1;
+                this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+            }
+
+            update() {
+                // Apply speed multiplier
+                let currentVx = this.vx * config.speedMultiplier;
+                let currentVy = this.vy * config.speedMultiplier;
+
+                // Mouse Repulsion Physics
+                if (mouse.active && config.repelRadius > 0) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const distSq = dx * dx + dy * dy;
+                    const repelSq = config.repelRadius * config.repelRadius;
+
+                    if (distSq < repelSq) {
+                        const dist = Math.sqrt(distSq);
+                        const force = (config.repelRadius - dist) / config.repelRadius; // 0 to 1
+                        const angle = Math.atan2(dy, dx);
+                        
+                        // Apply force outward from mouse
+                        currentVx += Math.cos(angle) * force * 5;
+                        currentVy += Math.sin(angle) * force * 5;
+                    }
+                }
+
+                this.x += currentVx;
+                this.y += currentVy;
+
+                // Boundary bounce
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+                
+                // Clamp to bounds to prevent sticking
+                this.x = Math.max(0, Math.min(width, this.x));
+                this.y = Math.max(0, Math.min(height, this.y));
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.baseRadius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // Glow effect for nodes
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0; // Reset
+            }
+        }
+
+        // System Initialization
+        let nodes = [];
+        const initSystem = () => {
+            resizeCanvas();
+            nodes = [];
+            for (let i = 0; i < config.nodeCount; i++) {
+                nodes.push(new Node());
+            }
+        };
+
+        const adjustNodeCount = () => {
+            const diff = config.nodeCount - nodes.length;
+            if (diff > 0) {
+                for(let i=0; i<diff; i++) nodes.push(new Node());
+            } else if (diff < 0) {
+                nodes.splice(0, Math.abs(diff));
+            }
+        };
+
+        // FPS Tracking
+        let lastTime = 0;
+        let frameCount = 0;
+        let fpsDisplay = document.getElementById('fps-counter');
+
+        // Main Render Loop
+        const animate = (timestamp) => {
+            // FPS Calculation
+            if (timestamp - lastTime >= 1000) {
+                fpsDisplay.innerText = `${frameCount} FPS`;
+                frameCount = 0;
+                lastTime = timestamp;
+            }
+            frameCount++;
+
+            // Clear with dark background
+            ctx.fillStyle = '#05050f';
+            ctx.fillRect(0, 0, width, height);
+
+            // Update all nodes
+            for (let i = 0; i < nodes.length; i++) {
+                nodes[i].update();
+            }
+
+            // Draw Connections (Spatial Web)
+            const radiusSq = config.connectionRadius * config.connectionRadius;
+            
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const distSq = dx * dx + dy * dy;
+
+                    if (distSq < radiusSq) {
+                        const dist = Math.sqrt(distSq);
+                        const opacity = 1 - (dist / config.connectionRadius);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        
+                        // Create gradient line based on connected node colors
+                        const gradient = ctx.createLinearGradient(nodes[i].x, nodes[i].y, nodes[j].x, nodes[j].y);
+                        
+                        // Extract hex to rgba for opacity
+                        const hexToRgb = (hex) => {
+                            const bigint = parseInt(hex.slice(1), 16);
+                            return `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`;
+                        };
+
+                        const rgb1 = hexToRgb(nodes[i].color);
+                        const rgb2 = hexToRgb(nodes[j].color);
+
+                        gradient.addColorStop(0, `rgba(${rgb1}, ${opacity * 0.8})`);
+                        gradient.addColorStop(1, `rgba(${rgb2}, ${opacity * 0.8})`);
+                        
+                        ctx.strokeStyle = gradient;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw Nodes on top of lines
+            for (let i = 0; i < nodes.length; i++) {
+                nodes[i].draw();
+            }
+
+            requestAnimationFrame(animate);
+        };
+
+        // Boot
+        initSystem();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>

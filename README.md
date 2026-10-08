@@ -63,7 +63,7 @@ No server required. Works offline.
 ---
 
 ## 🌐 Live Demo
-If hosted on GitHub Pages, link will look like:  https://aashura-bot.github.io/web-neutron/
+If hosted on GitHub Pages, link will look like:  https://Abbas-ghazi9m.github.io/web-neutron/
 
 
 ---
